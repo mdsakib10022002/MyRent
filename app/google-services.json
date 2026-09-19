@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "961566003528",
+    "firebase_url": "https://myrent-2463d-default-rtdb.firebaseio.com",
+    "project_id": "myrent-2463d",
+    "storage_bucket": "myrent-2463d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:961566003528:android:0e1ad698a51241d123637d",
+        "android_client_info": {
+          "package_name": "com.techmania.myrent"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0tLMNP_2-V_hwUFQ6nw8A3p272FtxPfw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
