@@ -570,7 +570,7 @@ fun AddPropertyScreen(
                             } else {
                                 val newProperty = Property(
                                     badge = "New",
-                                    badgeColorValue = Color(0xFF16C12E).toArgb(),
+                                    badgeColorValue = Color(0xFF3B82F6).toArgb(), // Modern Blue for New
                                     imageBgValue = Color(0xFFF7F7F2).toArgb(),
                                     price = "₹$rent",
                                     numericPrice = rent.toIntOrNull() ?: 0,

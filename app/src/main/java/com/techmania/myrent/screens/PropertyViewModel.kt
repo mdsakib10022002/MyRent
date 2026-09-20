@@ -148,7 +148,7 @@ class PropertyViewModel : ViewModel() {
         val initialProperties = listOf(
             Property(
                 id = "seed_1",
-                badge = "Rented", badgeColorValue = Color(0xFFFF0000).toArgb(),
+                badge = "Rented", badgeColorValue = Color(0xFFEF4444).toArgb(),
                 price = "₹22,000", numericPrice = 22000, name = "Sunshine Apartments", city = "Delhi",
                 areaName = "Dwarka Sector 10", pincode = "110075", rating = "4.8", numericRating = 4.8f,
                 reviews = "24", bhk = "2 BHK", numericBhk = 2, size = "850 sq ft", furnishing = "Fully Furnished",
@@ -157,7 +157,7 @@ class PropertyViewModel : ViewModel() {
             ),
             Property(
                 id = "seed_2",
-                badge = "Available", badgeColorValue = Color(0xFF4B4EFC).toArgb(),
+                badge = "Available", badgeColorValue = Color(0xFF22C55E).toArgb(),
                 price = "₹45,000", numericPrice = 45000, name = "Royal Villa", city = "Mumbai",
                 areaName = "Bandra West", pincode = "400050", rating = "4.9", numericRating = 4.9f,
                 reviews = "12", bhk = "3 BHK", numericBhk = 3, size = "1800 sq ft", furnishing = "Semi-Furnished",
@@ -245,7 +245,7 @@ class PropertyViewModel : ViewModel() {
         if (property.id.isEmpty()) return
         val currentStatus = property.badge
         val newStatus = if (currentStatus == "Rented") "Available" else "Rented"
-        val newColor = if (newStatus == "Rented") Color(0xFFFF0000) else Color(0xFF4B4EFC)
+        val newColor = if (newStatus == "Rented") Color(0xFFEF4444) else Color(0xFF22C55E)
         val newAvailability = if (newStatus == "Rented") "Occupied" else "Immediate"
         
         database?.child("properties")?.child(property.id)?.updateChildren(mapOf(

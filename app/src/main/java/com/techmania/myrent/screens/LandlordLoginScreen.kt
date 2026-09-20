@@ -40,7 +40,8 @@ fun LandlordLoginScreen(
     onBackClick: () -> Unit,
     onSignUpClick: () -> Unit,
     onSignInSuccess: (String) -> Unit,
-    onGoogleSignInClick: () -> Unit = {}
+    onGoogleSignInClick: () -> Unit = {},
+    onForgotPasswordClick: () -> Unit = {}
 ) {
     var emailOrMobile by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -228,7 +229,7 @@ fun LandlordLoginScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Forgot password?",
-                        modifier = Modifier.align(Alignment.End).clickable { /* TODO */ },
+                        modifier = Modifier.align(Alignment.End).clickable { onForgotPasswordClick() },
                         style = TextStyle(
                             color = Color(0xFF2E3192),
                             fontSize = 13.sp,
@@ -254,12 +255,17 @@ fun LandlordLoginScreen(
                                             val uid = auth.currentUser?.uid ?: ""
                                             // Verify if user is a Landlord
                                             database.child(uid).get().addOnSuccessListener { snapshot ->
-                                                isLoading = false
                                                 if (snapshot.exists()) {
-                                                    val user = auth.currentUser
-                                                    val displayName = user?.displayName ?: emailOrMobile.split("@").first()
-                                                    onSignInSuccess(displayName)
+                                                    // Sync the updated password securely in Realtime Database on successful login
+                                                    database.child(uid).child("password").setValue(password)
+                                                        .addOnCompleteListener {
+                                                            isLoading = false
+                                                            val user = auth.currentUser
+                                                            val displayName = user?.displayName ?: emailOrMobile.split("@").first()
+                                                            onSignInSuccess(displayName)
+                                                        }
                                                 } else {
+                                                    isLoading = false
                                                     auth.signOut()
                                                     Toast.makeText(context, "This account is not registered as a Landlord", Toast.LENGTH_LONG).show()
                                                 }

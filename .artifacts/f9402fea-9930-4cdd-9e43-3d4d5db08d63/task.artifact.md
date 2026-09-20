@@ -1,0 +1,22 @@
+# Tasks - Home Screen Redesign
+
+- [x] Redesign Header & Search Bar Integration
+    - [x] Create a unified `ModernHeaderSection`
+    - [x] Update background and padding for a streamlined look
+    - [x] Separate Greeting and Search Bar for sticky behavior
+    - [x] Implement transparent sticky background for "scrolling behind" effect
+- [x] Search & Filter Logic
+    - [x] Expand search to include `areaName` and `city` (Address)
+    - [x] Optimize filtering with `remember`
+- [x] Refine Category Chips
+    - [x] Update styling with subtle fills and elegant borders
+- [x] Enhance Trending Row
+    - [x] Polish `CompactTrendingCard` aesthetics
+- [x] Update Main Property Card
+    - [x] Set image height to `160.dp`
+    - [x] Increase corner radius to `18.dp`
+    - [x] Implement modern translucent badges
+    - [x] Tighten layout and optimize typography
+- [x] Verification
+    - [x] Compile check (Fixed missing `FilterSearchBottomSheet`)
+    - [x] UI Review

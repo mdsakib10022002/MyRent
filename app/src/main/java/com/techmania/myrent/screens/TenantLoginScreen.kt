@@ -44,7 +44,8 @@ fun TenantLoginScreen(
     onBackClick: () -> Unit, 
     onSignUpClick: () -> Unit,
     onSignInSuccess: (String) -> Unit = {},
-    onGoogleSignInClick: () -> Unit = {}
+    onGoogleSignInClick: () -> Unit = {},
+    onForgotPasswordClick: () -> Unit = {}
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -239,7 +240,7 @@ fun TenantLoginScreen(
 
                     Text(
                         text = "Forgot password?",
-                        modifier = Modifier.align(Alignment.End).clickable { /* TODO */ },
+                        modifier = Modifier.align(Alignment.End).clickable { onForgotPasswordClick() },
                         style = TextStyle(
                             color = Color(0xFF4B4EFC),
                             fontSize = 13.sp,
@@ -266,12 +267,17 @@ fun TenantLoginScreen(
                                             val uid = auth.currentUser?.uid ?: ""
                                             // Verify if user is a Tenant
                                             database.child(uid).get().addOnSuccessListener { snapshot ->
-                                                isLoading = false
                                                 if (snapshot.exists()) {
-                                                    val user = auth.currentUser
-                                                    val displayName = user?.displayName ?: email.split("@").first()
-                                                    onSignInSuccess(displayName)
+                                                    // Sync the updated password securely in Realtime Database on successful login
+                                                    database.child(uid).child("password").setValue(password)
+                                                        .addOnCompleteListener {
+                                                            isLoading = false
+                                                            val user = auth.currentUser
+                                                            val displayName = user?.displayName ?: email.split("@").first()
+                                                            onSignInSuccess(displayName)
+                                                        }
                                                 } else {
+                                                    isLoading = false
                                                     auth.signOut()
                                                     Toast.makeText(context, "This account is not registered as a Tenant", Toast.LENGTH_LONG).show()
                                                 }

@@ -153,6 +153,9 @@ fun MainNavigation() {
                 onGoogleSignInClick = {
                     isLandlord = false
                     launcher.launch(googleSignInClient.signInIntent)
+                },
+                onForgotPasswordClick = {
+                    navController.navigate("forgot_password/false")
                 }
             )
         }
@@ -183,6 +186,9 @@ fun MainNavigation() {
                 onGoogleSignInClick = {
                     isLandlord = true
                     launcher.launch(googleSignInClient.signInIntent)
+                },
+                onForgotPasswordClick = {
+                    navController.navigate("forgot_password/true")
                 }
             )
         }
@@ -197,6 +203,16 @@ fun MainNavigation() {
                         popUpTo("landlord_signup") { inclusive = true }
                     }
                 }
+            )
+        }
+        composable(
+            "forgot_password/{isLandlord}",
+            arguments = listOf(navArgument("isLandlord") { type = NavType.BoolType })
+        ) { backStackEntry ->
+            val isLandlordParam = backStackEntry.arguments?.getBoolean("isLandlord") ?: false
+            ForgotPasswordScreen(
+                isLandlord = isLandlordParam,
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable("home") {
