@@ -42,6 +42,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.database.FirebaseDatabase
 import com.techmania.myrent.ui.theme.MyRentTheme
+import java.util.Calendar
 
 @Composable
 fun TenantSignUpScreen(
@@ -313,7 +314,17 @@ fun TenantSignUpScreen(
                                             user?.updateProfile(profileUpdates)
 
                                             val uid = user?.uid ?: ""
-                                            val tenant = Tenant(uid, fullName, mobileNumber, emailAddress, password)
+                                            val currentYear = Calendar.getInstance().get(Calendar.YEAR).toString()
+                                            val tenant = Tenant(
+                                                uid = uid,
+                                                fullName = fullName,
+                                                mobileNumber = mobileNumber,
+                                                emailAddress = emailAddress,
+                                                password = password,
+                                                isVerified = false,
+                                                rating = 0.0f,
+                                                memberSince = currentYear
+                                            )
 
                                             database.child(uid).setValue(tenant).addOnCompleteListener { dbTask ->
                                                 isLoading = false

@@ -589,7 +589,8 @@ fun AddPropertyScreen(
                                     availability = "Immediate",
                                     amenities = selectedAmenities.toList(),
                                     description = description,
-                                    mediaUris = selectedMedia.map { it.toString() }
+                                    mediaUris = selectedMedia.map { it.toString() },
+                                    addedTimestamp = System.currentTimeMillis()
                                 )
                                 propertyViewModel.addProperty(newProperty)
                                 onPublishClick()

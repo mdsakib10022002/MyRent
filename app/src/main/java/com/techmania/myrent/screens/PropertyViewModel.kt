@@ -11,8 +11,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.MutableData
 import com.google.firebase.database.Transaction
+import com.google.firebase.database.ValueEventListener
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
@@ -29,6 +31,9 @@ class PropertyViewModel : ViewModel() {
 
     private val _enquiries = mutableStateListOf<Enquiry>()
     val enquiries: List<Enquiry> = _enquiries
+
+    private val _bookings = mutableStateListOf<Booking>()
+    val bookings: List<Booking> = _bookings
 
     val availableMonths = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun")
     
@@ -78,12 +83,10 @@ class PropertyViewModel : ViewModel() {
     )
 
     init {
-        seedInitialData()
-        seedEnquiries()
-        
         try {
             fetchProperties()
             fetchEnquiries()
+            fetchBookings()
         } catch (e: Exception) {}
     }
 
@@ -91,28 +94,41 @@ class PropertyViewModel : ViewModel() {
         database?.child("properties")?.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (!snapshot.exists()) return
-                
                 val snapshotIds = mutableSetOf<String>()
-                
+                val currentTime = System.currentTimeMillis()
+                val sevenDaysMs = 7 * 24 * 60 * 60 * 1000L
+
                 for (child in snapshot.children) {
                     val property = child.getValue(Property::class.java) ?: continue
-                    val propertyWithId = property.copy(id = child.key ?: "")
-                    snapshotIds.add(propertyWithId.id)
+                    var propertyWithId = property.copy(id = child.key ?: "")
                     
+                    // Auto-transition logic: "New" -> "Available" after 7 days
+                    if (propertyWithId.badge == "New" && 
+                        propertyWithId.addedTimestamp > 0 && 
+                        (currentTime - propertyWithId.addedTimestamp) > sevenDaysMs) {
+                        
+                        // Update in Firebase
+                        child.ref.updateChildren(mapOf(
+                            "badge" to "Available",
+                            "badgeColorValue" to Color(0xFF22C55E).toArgb()
+                        ))
+                        // Update local copy immediately for UI snappiness
+                        propertyWithId = propertyWithId.copy(
+                            badge = "Available",
+                            badgeColorValue = Color(0xFF22C55E).toArgb()
+                        )
+                    }
+
+                    snapshotIds.add(propertyWithId.id)
                     val index = _properties.indexOfFirst { it.id == propertyWithId.id }
                     if (index != -1) {
-                        if (_properties[index] != propertyWithId) {
-                            _properties[index] = propertyWithId
-                        }
+                        if (_properties[index] != propertyWithId) _properties[index] = propertyWithId
                     } else {
                         _properties.add(propertyWithId)
                     }
                 }
-                
-                // Remove properties that are no longer in Firebase (excluding local seeds)
                 _properties.removeIf { it.id.isNotEmpty() && !it.id.startsWith("seed_") && it.id !in snapshotIds }
             }
-
             override fun onCancelled(error: DatabaseError) {}
         })
     }
@@ -120,113 +136,174 @@ class PropertyViewModel : ViewModel() {
     private fun fetchEnquiries() {
         database?.child("enquiries")?.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (!snapshot.exists()) return
-
-                val snapshotIds = mutableSetOf<String>()
+                _enquiries.clear()
                 for (child in snapshot.children) {
                     val enquiry = child.getValue(Enquiry::class.java) ?: continue
-                    val enquiryWithId = enquiry.copy(id = child.key ?: "")
-                    snapshotIds.add(enquiryWithId.id)
-                    
-                    val index = _enquiries.indexOfFirst { it.id == enquiryWithId.id }
-                    if (index != -1) {
-                        if (_enquiries[index] != enquiryWithId) {
-                            _enquiries[index] = enquiryWithId
-                        }
-                    } else {
-                        _enquiries.add(enquiryWithId)
-                    }
+                    _enquiries.add(enquiry.copy(id = child.key ?: ""))
                 }
-                _enquiries.removeIf { it.id.isNotEmpty() && !it.id.startsWith("e_seed_") && it.id !in snapshotIds }
             }
-
             override fun onCancelled(error: DatabaseError) {}
         })
     }
 
-    private fun seedInitialData() {
-        val initialProperties = listOf(
-            Property(
-                id = "seed_1",
-                badge = "Rented", badgeColorValue = Color(0xFFEF4444).toArgb(),
-                price = "₹22,000", numericPrice = 22000, name = "Sunshine Apartments", city = "Delhi",
-                areaName = "Dwarka Sector 10", pincode = "110075", rating = "4.8", numericRating = 4.8f,
-                reviews = "24", bhk = "2 BHK", numericBhk = 2, size = "850 sq ft", furnishing = "Fully Furnished",
-                type = "Apartment", availability = "Occupied", amenities = listOf("Parking", "WiFi", "AC", "Lift"),
-                latitude = 28.5823, longitude = 77.0500
-            ),
-            Property(
-                id = "seed_2",
-                badge = "Available", badgeColorValue = Color(0xFF22C55E).toArgb(),
-                price = "₹45,000", numericPrice = 45000, name = "Royal Villa", city = "Mumbai",
-                areaName = "Bandra West", pincode = "400050", rating = "4.9", numericRating = 4.9f,
-                reviews = "12", bhk = "3 BHK", numericBhk = 3, size = "1800 sq ft", furnishing = "Semi-Furnished",
-                type = "Villa", availability = "Within 15 days", amenities = listOf("Parking", "Gym", "Pool", "Security"),
-                latitude = 19.0596, longitude = 72.8295
-            )
-        )
-        
-        if (_properties.isEmpty()) {
-            _properties.addAll(initialProperties)
-        }
-    }
-
-    private fun seedEnquiries() {
-        val initialEnquiries = listOf(
-            Enquiry(id = "e_seed_1", name = "Amit Mehta", propertyName = "Green View Villa", type = "Visit request", initials = "AM", avatarBgValue = Color(0xFFE8EAF6).toArgb(), showActionButtons = true),
-            Enquiry(id = "e_seed_2", name = "Priya Sharma", propertyName = "Lotus Studio", type = "Rent enquiry", initials = "PS", avatarBgValue = Color(0xFFFFF3E0).toArgb(), showChatButton = true)
-        )
-        if (_enquiries.isEmpty()) {
-            _enquiries.addAll(initialEnquiries)
-        }
-    }
-
-    fun rateProperty(propertyId: String, newUserRating: Float) {
-        if (propertyId.isEmpty()) return
-        
-        // Handle local seed data
-        if (propertyId.startsWith("seed_")) {
-            val index = _properties.indexOfFirst { it.id == propertyId }
-            if (index != -1) {
-                val p = _properties[index]
-                val currentReviews = p.reviews.toIntOrNull() ?: 0
-                val newReviewsCount = currentReviews + 1
-                val newAvg = ((p.numericRating * currentReviews) + newUserRating) / newReviewsCount
-                val roundedAvg = (Math.round(newAvg * 10.0) / 10.0).toFloat()
-                
-                _properties[index] = p.copy(
-                    numericRating = roundedAvg,
-                    rating = String.format("%.1f", roundedAvg),
-                    reviews = newReviewsCount.toString()
-                )
+    private fun fetchBookings() {
+        database?.child("bookings")?.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                _bookings.clear()
+                for (child in snapshot.children) {
+                    val booking = child.getValue(Booking::class.java) ?: continue
+                    _bookings.add(booking.copy(id = child.key ?: ""))
+                }
             }
-            return
-        }
-
-        val propertyRef = database?.child("properties")?.child(propertyId) ?: return
-
-        propertyRef.runTransaction(object : Transaction.Handler {
-            override fun doTransaction(mutableData: com.google.firebase.database.MutableData): Transaction.Result {
-                val p = mutableData.getValue(Property::class.java)
-                    ?: return Transaction.success(mutableData)
-
-                val currentReviews = p.reviews.toIntOrNull() ?: 0
-                val currentAvg = p.numericRating
-
-                val newReviewsCount = currentReviews + 1
-                val newAvg = ((currentAvg * currentReviews) + newUserRating) / newReviewsCount
-                
-                val roundedAvg = (Math.round(newAvg * 10.0) / 10.0).toFloat()
-
-                mutableData.child("numericRating").value = roundedAvg
-                mutableData.child("rating").value = String.format("%.1f", roundedAvg)
-                mutableData.child("reviews").value = newReviewsCount.toString()
-
-                return Transaction.success(mutableData)
-            }
-
-            override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {}
+            override fun onCancelled(error: DatabaseError) {}
         })
+    }
+
+    fun scheduleVisit(property: Property, date: String, time: String) {
+        val user = auth?.currentUser ?: return
+        val enquiryId = database?.child("enquiries")?.push()?.key ?: return
+        val bookingId = database?.child("bookings")?.push()?.key ?: return
+
+        val enquiry = Enquiry(
+            id = enquiryId,
+            name = user.displayName ?: user.email?.split("@")?.first() ?: "Tenant",
+            propertyName = property.name,
+            propertyId = property.id,
+            type = "Visit request",
+            initials = (user.displayName ?: "T").take(1).uppercase(),
+            tenantId = user.uid,
+            landlordId = property.landlordId,
+            visitDate = date,
+            visitTime = time,
+            status = "Pending"
+        )
+
+        val booking = Booking(
+            id = bookingId,
+            propertyId = property.id,
+            propertyName = property.name,
+            location = "${property.areaName}, ${property.city}",
+            bhk = property.bhk,
+            price = property.price,
+            status = "Pending",
+            tenantId = user.uid,
+            landlordId = property.landlordId,
+            visitDate = "$date · $time",
+            mediaUri = property.mediaUris.firstOrNull() ?: "",
+            imageBgValue = property.imageBgValue
+        )
+
+        database?.child("enquiries")?.child(enquiryId)?.setValue(enquiry)
+        database?.child("bookings")?.child(bookingId)?.setValue(booking)
+    }
+
+    fun rescheduleVisit(booking: Booking, date: String, time: String) {
+        val user = auth?.currentUser ?: return
+        val enquiryId = database?.child("enquiries")?.push()?.key ?: return
+        
+        val enquiry = Enquiry(
+            id = enquiryId,
+            name = user.displayName ?: user.email?.split("@")?.first() ?: "Tenant",
+            propertyName = booking.propertyName,
+            propertyId = booking.propertyId,
+            type = "Visit request (Reschedule)",
+            initials = (user.displayName ?: "T").take(1).uppercase(),
+            tenantId = user.uid,
+            landlordId = booking.landlordId,
+            visitDate = date,
+            visitTime = time,
+            status = "Pending"
+        )
+
+        database?.child("enquiries")?.child(enquiryId)?.setValue(enquiry)
+        database?.child("bookings")?.child(booking.id)?.updateChildren(mapOf(
+            "status" to "Pending",
+            "visitDate" to "$date · $time"
+        ))
+    }
+
+    fun requestToRent(property: Property) {
+        val user = auth?.currentUser ?: return
+        val enquiryId = database?.child("enquiries")?.push()?.key ?: return
+        val bookingId = database?.child("bookings")?.push()?.key ?: return
+        
+        val enquiry = Enquiry(
+            id = enquiryId,
+            name = user.displayName ?: user.email?.split("@")?.first() ?: "Tenant",
+            propertyName = property.name,
+            propertyId = property.id,
+            type = "Rent request",
+            initials = (user.displayName ?: "T").take(1).uppercase(),
+            tenantId = user.uid,
+            landlordId = property.landlordId,
+            status = "Pending"
+        )
+
+        val booking = Booking(
+            id = bookingId,
+            propertyId = property.id,
+            propertyName = property.name,
+            location = "${property.areaName}, ${property.city}",
+            bhk = property.bhk,
+            price = property.price,
+            status = "Pending",
+            tenantId = user.uid,
+            landlordId = property.landlordId,
+            mediaUri = property.mediaUris.firstOrNull() ?: "",
+            imageBgValue = property.imageBgValue
+        )
+
+        database?.child("enquiries")?.child(enquiryId)?.setValue(enquiry)
+        database?.child("bookings")?.child(bookingId)?.setValue(booking)
+    }
+
+    fun respondToEnquiry(enquiry: Enquiry, accept: Boolean) {
+        if (enquiry.id.isEmpty()) return
+        val status = if (accept) "Accepted" else "Declined"
+        database?.child("enquiries")?.child(enquiry.id)?.child("status")?.setValue(status)
+
+        if (accept) {
+            if (enquiry.type.contains("Rent request")) {
+                // Update Property to Rented globally
+                database?.child("properties")?.child(enquiry.propertyId)?.updateChildren(mapOf(
+                    "badge" to "Rented",
+                    "badgeColorValue" to Color(0xFFEF4444).toArgb(),
+                    "availability" to "Occupied"
+                ))
+
+                // Update Booking status to Active
+                database?.child("bookings")?.orderByChild("propertyId")?.equalTo(enquiry.propertyId)
+                    ?.addListenerForSingleValueEvent(object : ValueEventListener {
+                        override fun onDataChange(snapshot: DataSnapshot) {
+                            for (child in snapshot.children) {
+                                val booking = child.getValue(Booking::class.java)
+                                if (booking?.tenantId == enquiry.tenantId) {
+                                    child.ref.child("status").setValue("Active")
+                                    child.ref.child("since").setValue("Since " + SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(java.util.Date()))
+                                }
+                            }
+                        }
+                        override fun onCancelled(error: DatabaseError) {}
+                    })
+            } else if (enquiry.type.contains("Visit request")) {
+                // Update existing Booking status to "Visit set"
+                database?.child("bookings")?.orderByChild("propertyId")?.equalTo(enquiry.propertyId)
+                    ?.addListenerForSingleValueEvent(object : ValueEventListener {
+                        override fun onDataChange(snapshot: DataSnapshot) {
+                            for (child in snapshot.children) {
+                                val booking = child.getValue(Booking::class.java)
+                                if (booking?.tenantId == enquiry.tenantId) {
+                                    child.ref.updateChildren(mapOf(
+                                        "status" to "Visit set",
+                                        "visitDate" to (enquiry.visitDate + " · " + enquiry.visitTime)
+                                    ))
+                                }
+                            }
+                        }
+                        override fun onCancelled(error: DatabaseError) {}
+                    })
+            }
+        }
     }
 
     fun addProperty(property: Property) {
@@ -235,35 +312,44 @@ class PropertyViewModel : ViewModel() {
         database?.child("properties")?.child(id)?.setValue(property.copy(id = id, landlordId = landlordId))
     }
 
+    fun rateProperty(propertyId: String, newUserRating: Float) {
+        if (propertyId.isEmpty()) return
+        val propertyRef = database?.child("properties")?.child(propertyId) ?: return
+        propertyRef.runTransaction(object : Transaction.Handler {
+            override fun doTransaction(mutableData: MutableData): Transaction.Result {
+                val p = mutableData.getValue(Property::class.java)
+                    ?: return Transaction.success(mutableData)
+
+                val currentReviews = p.reviews.toIntOrNull() ?: 0
+                val currentAvg = p.numericRating
+
+                val newReviewsCount = currentReviews + 1
+                val newAvg = ((currentAvg * currentReviews) + newUserRating) / newReviewsCount
+                val roundedAvg = (Math.round(newAvg * 10.0) / 10.0).toFloat()
+
+                mutableData.child("numericRating").value = roundedAvg
+                mutableData.child("rating").value = String.format(Locale.getDefault(), "%.1f", roundedAvg)
+                mutableData.child("reviews").value = newReviewsCount.toString()
+
+                return Transaction.success(mutableData)
+            }
+            override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {}
+        })
+    }
+
+    fun toggleLike(property: Property) {
+        if (property.id.isEmpty()) return
+        database?.child("properties")?.child(property.id)?.child("isLiked")?.setValue(!property.isLiked)
+    }
+
+    fun cancelBooking(bookingId: String) {
+        if (bookingId.isEmpty()) return
+        database?.child("bookings")?.child(bookingId)?.child("status")?.setValue("Cancelled")
+    }
+
     fun removeProperty(property: Property) {
         if (property.id.isNotEmpty()) {
             database?.child("properties")?.child(property.id)?.removeValue()
         }
-    }
-
-    fun togglePropertyStatus(property: Property) {
-        if (property.id.isEmpty()) return
-        val currentStatus = property.badge
-        val newStatus = if (currentStatus == "Rented") "Available" else "Rented"
-        val newColor = if (newStatus == "Rented") Color(0xFFEF4444) else Color(0xFF22C55E)
-        val newAvailability = if (newStatus == "Rented") "Occupied" else "Immediate"
-        
-        database?.child("properties")?.child(property.id)?.updateChildren(mapOf(
-            "badge" to newStatus,
-            "badgeColorValue" to newColor.toArgb(),
-            "availability" to newAvailability
-        ))
-    }
-
-    fun toggleLike(property: Property) {
-        if (property.id.isEmpty() || property.id.startsWith("seed_")) {
-            val index = _properties.indexOfFirst { it.id == property.id }
-            if (index != -1) {
-                _properties[index] = _properties[index].copy(isLiked = !property.isLiked)
-            }
-            return
-        }
-        
-        database?.child("properties")?.child(property.id)?.child("isLiked")?.setValue(!property.isLiked)
     }
 }

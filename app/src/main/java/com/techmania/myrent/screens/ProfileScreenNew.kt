@@ -4,91 +4,64 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.launch
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.automirrored.outlined.Message
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.*
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
+import com.techmania.myrent.ui.theme.MyRentTheme
 
-// ─────────────────────────────────────────────
-//  DATA MODELS
-// ─────────────────────────────────────────────
+// ─── Data Models moved to Models.kt ──────────────────────────────────────────
 
-data class UserProfile(
-    val name: String = "Rahul Sharma",
-    val email: String = "rahul.sharma@email.com",
-    val phone: String = "+91 98765 43210",
-    val city: String = "New Delhi, India",
-    val occupation: String = "Software Engineer",
-    val rating: Float = 4.9f,
-    val memberSince: String = "2024",
-    val propertiesViewed: Int = 3,
-    val activeBookings: Int = 2,
-    val leasesEnded: Int = 1,
-    val profileImage: Any? = null // Can be Uri or Bitmap or String URL
-)
+enum class ProfileTab { INFO, SETTINGS }
 
-data class BookingItem(
-    val name: String,
-    val location: String,
-    val price: String,
-    val status: BookingStatus,
-    val colorSeed: Int
-)
-
-enum class ProfileTab { INFO, BOOKINGS, SETTINGS }
-
-// ─────────────────────────────────────────────
-//  COLORS
-// ─────────────────────────────────────────────
-private val Navy        = Color(0xFF1A1A2E)
-private val Indigo      = Color(0xFF4F46E5)
-private val IndigoLight = Color(0xFFEDE9FE)
-private val IndigoText  = Color(0xFF3730A3)
-private val GreenBg     = Color(0xFFDCFCE7)
-private val GreenText   = Color(0xFF15803D)
-private val AmberBg     = Color(0xFFFEF3C7)
-private val AmberText   = Color(0xFFB45309)
-private val BlueBg      = Color(0xFFDBEAFE)
-private val BlueText    = Color(0xFF1D4ED8)
-private val PinkBg      = Color(0xFFFCE7F3)
-private val PinkText    = Color(0xFFBE185D)
-private val RedText     = Color(0xFFDC2626)
-private val RedBorder   = Color(0xFFFCA5A5)
-private val RedBg       = Color(0xFFFEF2F2)
-private val Surface     = Color(0xFFF9FAFB)
-private val BorderColor = Color(0xFFE5E7EB)
-private val TextPrimary = Color(0xFF111827)
-private val TextSecond  = Color(0xFF6B7280)
-private val TextTertiary= Color(0xFF9CA3AF)
-
-// ─────────────────────────────────────────────
-//  ROOT SCREEN
-// ─────────────────────────────────────────────
+// ─── Colors ──────────────────────────────────────────────────────────────────
+val Navy           = Color(0xFF1A1A2E)
+val Indigo         = Color(0xFF4F46E5)
+val IndigoLight    = Color(0xFFEBEBFF)
+val IndigoText     = Color(0xFF4B4EFC)
+val GreenBg        = Color(0xFFE6F4EA)
+val GreenText      = Color(0xFF13694C)
+val AmberBg        = Color(0xFFFFF7E6)
+val AmberText      = Color(0xFFB45309)
+val BlueBg         = Color(0xFFEBF5FF)
+val BlueText       = Color(0xFF1E40AF)
+val PinkBg         = Color(0xFFFDF2F8)
+val PinkText       = Color(0xFF9D174D)
+val RedText        = Color(0xFFDC2626)
+val RedBorder      = Color(0xFFFECACA)
+val RedBg          = Color(0xFFFEF2F2)
+val Surface        = Color(0xFFF8F9FB)
+val BorderColor    = Color(0xFFE5E7EB)
+val TextPrimary    = Color(0xFF1F2937)
+val TextSecond     = Color(0xFF4B5563)
+val TextTertiary   = Color(0xFF9CA3AF)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,11 +95,18 @@ fun ProfileScreenNew(
                         ?: snapshot.child("mobile").value?.toString() ?: profileState.phone
                     val fetchedCity = snapshot.child("city").value?.toString() ?: profileState.city
                     
+                    val fetchedVerified = snapshot.child("isVerified").value as? Boolean ?: false
+                    val fetchedRating = (snapshot.child("rating").value as? Number)?.toFloat() ?: 0.0f
+                    val fetchedSince = snapshot.child("memberSince").value?.toString() ?: "2024"
+
                     profileState = profileState.copy(
                         name = fetchedName,
                         email = fetchedEmail,
                         phone = fetchedPhone,
-                        city = fetchedCity
+                        city = fetchedCity,
+                        isVerified = fetchedVerified,
+                        rating = fetchedRating,
+                        memberSince = fetchedSince
                     )
                 }
                 isLoading = false
@@ -161,11 +141,6 @@ fun ProfileScreenNew(
         showPhotoOptions = false
     }
 
-    val bookings = listOf(
-        BookingItem("Sunshine Apartments","Dwarka Sector 10, Delhi","₹22,000", BookingStatus.ACTIVE, 0),
-        BookingItem("Green View Villa","Vasant Kunj, Delhi","₹45,000", BookingStatus.VISIT_SET, 1),
-        BookingItem("Laxmi Nagar Studio","East Delhi","₹12,000", BookingStatus.COMPLETED, 2)
-    )
 
     Scaffold(
         containerColor = Surface,
@@ -192,6 +167,7 @@ fun ProfileScreenNew(
                     // ── Hero banner
                     ProfileHero(
                         profile = profileState.copy(profileImage = currentImage), 
+                        isLandlord = isLandlord,
                         onEditClick = onEditClick,
                         onAvatarClick = { showPhotoOptions = true }
                     )
@@ -205,7 +181,6 @@ fun ProfileScreenNew(
                     // ── Panel content
                     when (selectedTab) {
                         ProfileTab.INFO     -> InfoPanel(profileState, onLogoutClick)
-                        ProfileTab.BOOKINGS -> BookingsPanel(bookings)
                         ProfileTab.SETTINGS -> SettingsPanel(onLogoutClick)
                     }
 
@@ -213,37 +188,36 @@ fun ProfileScreenNew(
                 }
             }
 
+            // Photo Option Bottom Sheet (Simplified with AlertDialog for this template)
             if (showPhotoOptions) {
                 ModalBottomSheet(
                     onDismissRequest = { showPhotoOptions = false },
-                    sheetState = rememberModalBottomSheetState(),
                     containerColor = Color.White,
-                    dragHandle = { BottomSheetDefaults.DragHandle() }
+                    dragHandle = { BottomSheetDefaults.DragHandle(color = BorderColor) }
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 32.dp, top = 8.dp)
+                            .padding(bottom = 32.dp)
                     ) {
                         Text(
-                            text = "Change Profile Photo",
+                            "PROFILE PHOTO",
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
                         )
                         
                         ListItem(
                             headlineContent = { Text("Take Photo", fontWeight = FontWeight.Medium) },
                             leadingContent = { 
                                 Box(
-                                    modifier = Modifier.size(40.dp).clip(CircleShape).background(IndigoLight),
+                                    modifier = Modifier.size(40.dp).clip(CircleShape).background(GreenBg),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Outlined.PhotoCamera, contentDescription = null, tint = Indigo, modifier = Modifier.size(20.dp)) 
+                                    Icon(Icons.Outlined.PhotoCamera, contentDescription = null, tint = GreenText, modifier = Modifier.size(20.dp)) 
                                 }
                             },
-                            modifier = Modifier.clickable { cameraLauncher.launch() }
+                            modifier = Modifier.clickable { cameraLauncher.launch(null) }
                         )
                         
                         ListItem(
@@ -270,7 +244,7 @@ fun ProfileScreenNew(
 // ─────────────────────────────────────────────
 
 @Composable
-fun ProfileHero(profile: UserProfile, onEditClick: () -> Unit, onAvatarClick: () -> Unit) {
+fun ProfileHero(profile: UserProfile, isLandlord: Boolean, onEditClick: () -> Unit, onAvatarClick: () -> Unit) {
 
     Box(
         modifier = Modifier
@@ -395,9 +369,9 @@ fun ProfileHero(profile: UserProfile, onEditClick: () -> Unit, onAvatarClick: ()
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HeroBadge(
-                    icon = Icons.Outlined.CheckCircle,
-                    label = "Verified tenant",
-                    iconTint = Color(0xFF86EFAC)
+                    icon = if (profile.isVerified) Icons.Outlined.Verified else if (isLandlord) Icons.Outlined.Apartment else Icons.Outlined.Person,
+                    label = if (profile.isVerified) "Verified ${if (isLandlord) "landlord" else "tenant"}" else if (isLandlord) "Landlord" else "Tenant",
+                    iconTint = if (profile.isVerified) Color(0xFF86EFAC) else Color.White.copy(alpha = 0.7f)
                 )
                 HeroBadge(
                     icon = Icons.Outlined.Star,
@@ -406,7 +380,7 @@ fun ProfileHero(profile: UserProfile, onEditClick: () -> Unit, onAvatarClick: ()
                 )
                 HeroBadge(
                     icon = Icons.Outlined.CalendarMonth,
-                    label = "Since ${profile.memberSince}",
+                    label = "Since ${if (profile.memberSince.isNotEmpty()) profile.memberSince else "2024"}",
                     iconTint = Color.White.copy(alpha = 0.8f)
                 )
             }
@@ -446,98 +420,97 @@ fun StatCardsRow(profile: UserProfile) {
             profile.activeBookings   to "Active\nbookings",
             profile.leasesEnded      to "Leases\nended"
         ).forEach { (num, label) ->
-            StatCard(number = num.toString(), label = label, modifier = Modifier.weight(1f))
+            StatCard(count = num.toString(), label = label, modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-fun StatCard(number: String, label: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(Surface)
-            .border(0.5.dp, BorderColor, RoundedCornerShape(10.dp))
-            .padding(vertical = 12.dp, horizontal = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+fun StatCard(count: String, label: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, BorderColor)
     ) {
-        Text(
-            number,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            label,
-            fontSize = 11.sp,
-            color = TextSecond,
-            lineHeight = 14.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+        Column(
+            modifier = Modifier.padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                count,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Text(
+                label,
+                fontSize = 11.sp,
+                color = TextTertiary,
+                textAlign = TextAlign.Center,
+                lineHeight = 14.sp
+            )
+        }
     }
 }
 
 // ─────────────────────────────────────────────
-//  TAB ROW
+//  TABS
 // ─────────────────────────────────────────────
 
 @Composable
 fun ProfileTabRow(selected: ProfileTab, onSelect: (ProfileTab) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .border(
-                width = 0.5.dp,
-                color = BorderColor,
-                shape = RectangleShape
-            )
+    Surface(
+        color = Color.White,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        ProfileTab.entries.forEach { tab ->
-            val isOn = tab == selected
-            val indicatorColor by animateColorAsState(
-                if (isOn) Indigo else Color.Transparent,
-                animationSpec = tween(200),
-                label = "tab_indicator"
-            )
-            val textColor by animateColorAsState(
-                if (isOn) Indigo else TextSecond,
-                animationSpec = tween(200),
-                label = "tab_text"
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onSelect(tab) }
-                    .drawBehind {
-                        // bottom indicator line
-                        drawRect(
-                            color = indicatorColor,
-                            topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - 2.5f),
-                            size = androidx.compose.ui.geometry.Size(size.width, 2.5f)
-                        )
-                    }
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    tab.name.lowercase().replaceFirstChar { it.uppercase() },
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = textColor
-                )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            ProfileTab.entries.forEach { tab ->
+                val isSelected = selected == tab
+                val label = when(tab) {
+                    ProfileTab.INFO     -> "Personal Info"
+                    ProfileTab.SETTINGS -> "Settings"
+                }
+                
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { onSelect(tab) }
+                        .padding(vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        label,
+                        fontSize = 14.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                        color = if (isSelected) IndigoText else TextTertiary
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(32.dp)
+                            .height(2.dp)
+                            .clip(CircleShape)
+                            .background(if (isSelected) IndigoText else Color.Transparent)
+                    )
+                }
             }
         }
     }
+    HorizontalDivider(thickness = 0.5.dp, color = BorderColor)
 }
 
 // ─────────────────────────────────────────────
-//  INFO PANEL
+//  PANELS
 // ─────────────────────────────────────────────
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun InfoPanel(profile: UserProfile, onLogout: () -> Unit) {
     val isPreview = LocalInspectionMode.current
@@ -546,28 +519,29 @@ fun InfoPanel(profile: UserProfile, onLogout: () -> Unit) {
         // Personal details
         SectionHeader("Personal details")
         InfoCard {
-            InfoRow(icon = Icons.Outlined.Person,      iconBg = IndigoLight, iconTint = IndigoText, label = "Full name",       value = profile.name)
+            InfoRow(icon = Icons.Outlined.Person,      iconBg = IndigoLight, iconTint = IndigoText, label = "FULL NAME",       value = profile.name)
             InfoRowDivider()
-            InfoRow(icon = Icons.Outlined.Phone,       iconBg = BlueBg,     iconTint = BlueText,   label = "Mobile number",   value = profile.phone)
+            InfoRow(icon = Icons.Outlined.Phone,       iconBg = BlueBg,     iconTint = BlueText,   label = "MOBILE NUMBER",   value = profile.phone)
             InfoRowDivider()
-            InfoRow(icon = Icons.Outlined.Mail,        iconBg = PinkBg,     iconTint = PinkText,   label = "Email address",   value = profile.email)
+            InfoRow(icon = Icons.Outlined.Mail,        iconBg = PinkBg,     iconTint = PinkText,   label = "EMAIL ADDRESS",   value = profile.email)
             InfoRowDivider()
-            InfoRow(icon = Icons.Outlined.LocationOn,  iconBg = GreenBg,    iconTint = GreenText,  label = "Current city",    value = profile.city)
+            InfoRow(icon = Icons.Outlined.LocationOn,  iconBg = GreenBg,    iconTint = GreenText,  label = "CURRENT CITY",    value = profile.city)
             InfoRowDivider()
-            InfoRow(icon = Icons.Outlined.Work,        iconBg = AmberBg,    iconTint = AmberText,  label = "Occupation",      value = profile.occupation)
+            InfoRow(icon = Icons.Outlined.Work,        iconBg = AmberBg,    iconTint = AmberText,  label = "OCCUPATION",      value = profile.occupation)
         }
 
         // Rental preferences
         SectionHeader("Rental preferences")
         InfoCard {
-            InfoRow(icon = Icons.Outlined.Apartment,   iconBg = IndigoLight, iconTint = IndigoText, label = "Property type",  value = "Apartment, Studio")
+            InfoRow(icon = Icons.Outlined.Apartment,   iconBg = IndigoLight, iconTint = IndigoText, label = "PROPERTY TYPE",  value = "Apartment, Studio")
             InfoRowDivider()
-            InfoRow(icon = Icons.Outlined.CurrencyRupee, iconBg = BlueBg,   iconTint = BlueText,   label = "Budget range",   value = "₹10,000 – ₹35,000 / mo")
+            InfoRow(icon = Icons.Outlined.CurrencyRupee, iconBg = BlueBg,   iconTint = BlueText,   label = "BUDGET RANGE",   value = "₹10,000 – ₹35,000 / mo")
             InfoRowDivider()
             // amenity chips
             Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                 Text("AMENITIES PREFERRED", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecond, letterSpacing = 0.07.sp)
                 Spacer(Modifier.height(8.dp))
+                @OptIn(ExperimentalLayoutApi::class)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(7.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)
@@ -583,13 +557,13 @@ fun InfoPanel(profile: UserProfile, onLogout: () -> Unit) {
         // Documents
         SectionHeader("Documents")
         InfoCard {
-            DocumentRow(label = "Aadhaar card", status = "Verified", statusColor = GreenText, statusBg = GreenBg, icon = Icons.Outlined.Badge)
+            DocumentRow(label = "AADHAAR CARD", status = if (profile.isVerified) "Verified" else "Pending", statusColor = if (profile.isVerified) GreenText else AmberText, statusBg = if (profile.isVerified) GreenBg else AmberBg, icon = Icons.Outlined.Badge)
             InfoRowDivider()
-            DocumentRow(label = "PAN card",     status = "Verified", statusColor = GreenText, statusBg = GreenBg, icon = Icons.Outlined.CreditCard)
+            DocumentRow(label = "PAN CARD",     status = if (profile.isVerified) "Verified" else "Pending", statusColor = if (profile.isVerified) GreenText else AmberText, statusBg = if (profile.isVerified) GreenBg else AmberBg, icon = Icons.Outlined.CreditCard)
             InfoRowDivider()
-            DocumentRow(label = "Salary slip / ITR", status = "Pending", statusColor = AmberText, statusBg = AmberBg, icon = Icons.Outlined.Description)
+            DocumentRow(label = "SALARY SLIP / ITR", status = "Pending", statusColor = AmberText, statusBg = AmberBg, icon = Icons.Outlined.Description)
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp))
         // Logout Button
         Button(
             onClick = {
@@ -607,256 +581,106 @@ fun InfoPanel(profile: UserProfile, onLogout: () -> Unit) {
             Spacer(modifier = Modifier.width(8.dp))
             Text("Sign Out", color = Color.Red, fontWeight = FontWeight.Bold)
         }
-
-
     }
 }
 
-// ─────────────────────────────────────────────
-//  BOOKINGS PANEL
-// ─────────────────────────────────────────────
 
 @Composable
-fun BookingsPanel(bookings: List<BookingItem>) {
-    val active = bookings.filter { it.status != BookingStatus.COMPLETED && it.status != BookingStatus.CANCELLED }
-    val past   = bookings.filter { it.status == BookingStatus.COMPLETED || it.status == BookingStatus.CANCELLED }
+fun SettingsPanel(onLogout: () -> Unit) {
+    var notificationsOn by remember { mutableStateOf(true) }
+    var twoFaOn by remember { mutableStateOf(false) }
 
-    if (active.isNotEmpty()) {
-        SectionHeader("Active bookings")
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            active.forEach { BookingCard(it) }
-        }
-    }
-
-    if (past.isNotEmpty()) {
-        SectionHeader("Past bookings")
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .alpha(0.6f),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            past.forEach { BookingCard(it) }
-        }
-    }
-}
-
-@Composable
-fun BookingCard(item: BookingItem) {
-    val thumbColors = listOf(
-        Color(0xFFDCE8F8) to Color(0xFF6680AA),
-        Color(0xFFD4EEE0) to Color(0xFF5A9E7A),
-        Color(0xFFFCE7F3) to Color(0xFFC08868)
-    )
-    val (thumbBg, houseColor) = thumbColors[item.colorSeed % thumbColors.size]
-
-    val (statusBg, statusColor, statusText) = when (item.status) {
-        BookingStatus.ACTIVE    -> Triple(GreenBg,   GreenText,  "Confirmed")
-        BookingStatus.VISIT_SET -> Triple(AmberBg,   AmberText,  "Visit scheduled")
-        BookingStatus.PENDING   -> Triple(AmberBg,   AmberText,  "Pending")
-        BookingStatus.COMPLETED -> Triple(Surface,   TextSecond, "Lease ended")
-        BookingStatus.CANCELLED -> Triple(Surface,   TextSecond, "Cancelled")
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
-            .border(0.5.dp, BorderColor, RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // thumbnail
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(thumbBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Outlined.Home,
-                contentDescription = null,
-                tint = houseColor.copy(alpha = 0.5f),
-                modifier = Modifier.size(28.dp)
+    Column {
+        SectionHeader("Account settings")
+        SettingsCard {
+            SettingsRow(
+                icon = Icons.Outlined.Notifications,
+                iconBg = IndigoLight,
+                iconTint = IndigoText,
+                title = "Push notifications",
+                subtitle = "Alerts about rent & visits",
+                action = { NestToggle(checked = notificationsOn, onToggle = { notificationsOn = it }) }
+            )
+            InfoRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Security,
+                iconBg = BlueBg,
+                iconTint = BlueText,
+                title = "Two-factor auth",
+                subtitle = "Secure your account",
+                action = { NestToggle(checked = twoFaOn, onToggle = { twoFaOn = it }) }
+            )
+            InfoRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Language,
+                iconBg = PinkBg,
+                iconTint = PinkText,
+                title = "Language",
+                subtitle = "English (US)",
+                action = { Icon(Icons.Default.ChevronRight, null, tint = TextTertiary) }
             )
         }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(item.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(item.location, fontSize = 11.5.sp, color = TextSecond, maxLines = 1)
-            Spacer(Modifier.height(5.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(statusBg)
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
-            ) {
-                Text(statusText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = statusColor)
-            }
+        SectionHeader("Support")
+        SettingsCard {
+            SettingsRow(
+                icon = Icons.Outlined.HelpOutline,
+                iconBg = GreenBg,
+                iconTint = GreenText,
+                title = "Help center",
+                subtitle = "FAQs & documentation",
+                action = { Icon(Icons.Default.ChevronRight, null, tint = TextTertiary) }
+            )
+            InfoRowDivider()
+            SettingsRow(
+                icon = Icons.Outlined.Description,
+                iconBg = AmberBg,
+                iconTint = AmberText,
+                title = "Terms of service",
+                subtitle = "Identity documents",
+                action = { Icon(Icons.Default.ChevronRight, null, tint = TextTertiary) }
+            )
         }
-
-        Column(horizontalAlignment = Alignment.End) {
-            Text(item.price, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-            Text("/month", fontSize = 11.sp, color = TextSecond)
-        }
-    }
-}
-
-// ─────────────────────────────────────────────
-//  SETTINGS PANEL
-// ─────────────────────────────────────────────
-
-@Composable
-fun SettingsPanel(onLogoutClick: () -> Unit) {
-    // Account section
-    SectionHeader("Account")
-    SettingsCard {
-        SettingsRow(
-            icon = Icons.Outlined.Lock,
-            iconBg = IndigoLight, iconTint = IndigoText,
-            title = "Change password",
-            subtitle = "Update your login password",
-            action = { Icon(Icons.Outlined.ChevronRight, null, tint = TextTertiary, modifier = Modifier.size(18.dp)) }
-        )
-        InfoRowDivider()
-        var twoFaOn by remember { mutableStateOf(true) }
-        SettingsRow(
-            icon = Icons.Outlined.Shield,
-            iconBg = BlueBg, iconTint = BlueText,
-            title = "Two-factor auth",
-            subtitle = "Extra layer of security",
-            action = { NestToggle(checked = twoFaOn, onToggle = { twoFaOn = it }) }
-        )
-        InfoRowDivider()
-        SettingsRow(
-            icon = Icons.Outlined.Badge,
-            iconBg = GreenBg, iconTint = GreenText,
-            title = "KYC verification",
-            subtitle = "Identity documents",
-            action = {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(GreenBg)
-                        .padding(horizontal = 9.dp, vertical = 3.dp)
-                ) { Text("Verified", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = GreenText) }
-            }
-        )
-    }
-
-    // Notifications section
-    SectionHeader("Notifications")
-    SettingsCard {
-        var pushOn  by remember { mutableStateOf(true) }
-        var emailOn by remember { mutableStateOf(false) }
-        var smsOn   by remember { mutableStateOf(true) }
-
-        SettingsRow(
-            icon = Icons.Outlined.Notifications,
-            iconBg = AmberBg, iconTint = AmberText,
-            title = "Push notifications",
-            subtitle = "New listings, rent reminders",
-            action = { NestToggle(checked = pushOn, onToggle = { pushOn = it }) }
-        )
-        InfoRowDivider()
-        SettingsRow(
-            icon = Icons.Outlined.Mail,
-            iconBg = PinkBg, iconTint = PinkText,
-            title = "Email alerts",
-            subtitle = "Booking confirmations",
-            action = { NestToggle(checked = emailOn, onToggle = { emailOn = it }) }
-        )
-        InfoRowDivider()
-        SettingsRow(
-            icon = Icons.AutoMirrored.Outlined.Message,
-            iconBg = BlueBg, iconTint = BlueText,
-            title = "SMS alerts",
-            subtitle = "OTP and transaction SMS",
-            action = { NestToggle(checked = smsOn, onToggle = { smsOn = it }) }
-        )
-    }
-
-    // Support section
-    SectionHeader("Support")
-    SettingsCard {
-        SettingsRow(
-            icon = Icons.Outlined.Headset,
-            iconBg = IndigoLight, iconTint = IndigoText,
-            title = "Help & support",
-            subtitle = "FAQs and chat with us",
-            action = { Icon(Icons.Outlined.ChevronRight, null, tint = TextTertiary, modifier = Modifier.size(18.dp)) }
-        )
-        InfoRowDivider()
-        SettingsRow(
-            icon = Icons.Outlined.Star,
-            iconBg = Surface, iconTint = TextSecond,
-            title = "Rate the app",
-            subtitle = "Share your feedback",
-            action = { Icon(Icons.Outlined.ChevronRight, null, tint = TextTertiary, modifier = Modifier.size(18.dp)) }
-        )
-        InfoRowDivider()
-        SettingsRow(
-            icon = Icons.Outlined.Description,
-            iconBg = Surface, iconTint = TextSecond,
-            title = "Terms & privacy",
-            subtitle = "Legal information",
-            action = { Icon(Icons.Outlined.ChevronRight, null, tint = TextTertiary, modifier = Modifier.size(18.dp)) }
-        )
-    }
-
-    // Logout button
-    Box(modifier = Modifier.padding(16.dp)) {
-        OutlinedButton(
-            onClick = onLogoutClick,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = RedBg,
-                contentColor   = RedText
-            ),
-            border = BorderStroke(0.5.dp, RedBorder),
-            shape  = RoundedCornerShape(12.dp),
-            contentPadding = PaddingValues(vertical = 13.dp)
+        
+        Spacer(Modifier.height(16.dp))
+        
+        TextButton(
+            onClick = onLogout,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Log out", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text("Logout from all devices", color = RedText, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
 
 // ─────────────────────────────────────────────
-//  REUSABLE SMALL COMPOSABLES
+//  REUSABLES
 // ─────────────────────────────────────────────
 
 @Composable
 fun SectionHeader(title: String) {
     Text(
-        text = title.uppercase(),
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 10.dp),
+        title.uppercase(),
+        modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 10.dp),
         fontSize = 11.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = TextSecond,
-        letterSpacing = 0.07.sp
+        fontWeight = FontWeight.Bold,
+        color = TextTertiary,
+        letterSpacing = 0.8.sp
     )
 }
 
 @Composable
 fun InfoCard(content: @Composable ColumnScope.() -> Unit) {
-    Column(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
-            .border(0.5.dp, BorderColor, RoundedCornerShape(12.dp)),
-        content = content
-    )
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(0.5.dp, BorderColor)
+    ) {
+        Column(content = content)
+    }
 }
 
 @Composable
@@ -867,7 +691,7 @@ fun InfoRowDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = 14.dp),
         thickness = 0.5.dp,
-        color = BorderColor
+        color = BorderColor.copy(alpha = 0.6f)
     )
 }
 
@@ -882,25 +706,23 @@ fun InfoRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(iconBg),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
+            Icon(icon, null, tint = iconTint, modifier = Modifier.size(18.dp))
         }
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(label.uppercase(), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = TextSecond, letterSpacing = 0.07.sp)
-            Spacer(Modifier.height(2.dp))
-            Text(value, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+            Text(label, fontSize = 11.sp, color = TextTertiary, fontWeight = FontWeight.Medium)
+            Text(value, fontSize = 14.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
         }
-        Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = TextTertiary, modifier = Modifier.size(16.dp))
     }
 }
 
@@ -915,34 +737,30 @@ fun DocumentRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(AmberBg),
+                .background(IndigoLight),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = AmberText, modifier = Modifier.size(18.dp))
+            Icon(icon, null, tint = IndigoText, modifier = Modifier.size(18.dp))
         }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(label.uppercase(), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = TextSecond, letterSpacing = 0.07.sp)
-            Spacer(Modifier.height(2.dp))
-            Text(status, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = statusColor)
-        }
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(5.dp))
-                .background(statusBg)
-                .padding(horizontal = 9.dp, vertical = 3.dp)
+        Spacer(Modifier.width(12.dp))
+        Text(label, modifier = Modifier.weight(1f), fontSize = 14.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+        
+        Surface(
+            color = statusBg,
+            shape = RoundedCornerShape(6.dp)
         ) {
             Text(
-                if (status == "Verified") "✓" else "Upload",
+                status,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = statusColor
             )
         }
@@ -961,23 +779,22 @@ fun SettingsRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {}
-            .padding(horizontal = 14.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(iconBg),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
+            Icon(icon, null, tint = iconTint, modifier = Modifier.size(18.dp))
         }
+        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title,    fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-            Text(subtitle, fontSize = 11.5.sp, color = TextSecond)
+            Text(title, fontSize = 14.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, fontSize = 11.sp, color = TextTertiary)
         }
         action()
     }
@@ -985,54 +802,40 @@ fun SettingsRow(
 
 @Composable
 fun AmenityChip(label: String, active: Boolean) {
-    val bg     = if (active) IndigoLight else Surface
-    val border = if (active) Color(0xFFC4B5FD) else BorderColor
-    val text   = if (active) IndigoText else TextSecond
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(bg)
-            .border(0.5.dp, border, RoundedCornerShape(20.dp))
-            .padding(horizontal = 12.dp, vertical = 5.dp)
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = if (active) IndigoLight else Color(0xFFF3F4F6),
+        border = if (active) BorderStroke(0.5.dp, IndigoText.copy(alpha = 0.3f)) else null
     ) {
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = text)
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            fontSize = 11.sp,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+            color = if (active) IndigoText else TextTertiary
+        )
     }
 }
 
 @Composable
 fun NestToggle(checked: Boolean, onToggle: (Boolean) -> Unit) {
-    val bg by animateColorAsState(
-        targetValue = if (checked) Indigo else BorderColor,
-        animationSpec = tween(200),
-        label = "toggle_bg"
-    )
-    Box(
-        modifier = Modifier
-            .size(width = 38.dp, height = 22.dp)
-            .clip(RoundedCornerShape(11.dp))
-            .background(bg)
-            .clickable { onToggle(!checked) },
-        contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(horizontal = 3.dp)
-                .size(16.dp)
-                .clip(CircleShape)
-                .background(Color.White)
+    Switch(
+        checked = checked,
+        onCheckedChange = onToggle,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = Color.White,
+            checkedTrackColor = Indigo,
+            uncheckedThumbColor = Color.White,
+            uncheckedTrackColor = Color(0xFFE5E7EB),
+            uncheckedBorderColor = Color.Transparent
         )
-    }
+    )
 }
-
-// ─────────────────────────────────────────────
-//  PREVIEW
-// ─────────────────────────────────────────────
 
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 fun ProfileScreenNewPreview() {
-    MaterialTheme {
+    MyRentTheme {
         ProfileScreenNew()
     }
 }

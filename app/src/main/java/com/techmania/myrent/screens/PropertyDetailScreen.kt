@@ -19,7 +19,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,7 +55,17 @@ fun PropertyDetailScreen(
 
     Scaffold(
         bottomBar = {
-            PropertyDetailBottomBar(onScheduleClick = { showScheduleDialog = true })
+            PropertyDetailBottomBar(
+                onScheduleClick = { showScheduleDialog = true },
+                onRequestToRentClick = {
+                    if (property != null) {
+                        propertyViewModel.requestToRent(property)
+                        Toast.makeText(context, "Rent request sent for ${property.name}", Toast.LENGTH_LONG).show()
+                        onBackClick() // Go back after request
+                    }
+                },
+                isRented = property?.badge == "Rented"
+            )
         },
         containerColor = Color(0xFFF8F9FB)
     ) { innerPadding ->
@@ -302,82 +314,15 @@ fun PropertyDetailScreen(
             propertyName = property.name,
             onDismiss = { showScheduleDialog = false },
             onConfirm = { date, time ->
-                Toast.makeText(context, "Visit scheduled for $date at $time for ${property.name}", Toast.LENGTH_LONG).show()
+                propertyViewModel.scheduleVisit(property, date, time)
+                Toast.makeText(context, "Visit request sent for $date at $time", Toast.LENGTH_LONG).show()
                 showScheduleDialog = false
+                onBackClick()
             }
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ScheduleVisitDialog(
-    propertyName: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String, String) -> Unit
-) {
-    var step by remember { mutableStateOf(1) } // 1: Date Picker, 2: Time Picker
-    val datePickerState = rememberDatePickerState()
-    val timePickerState = rememberTimePickerState()
-
-    if (step == 1) {
-        DatePickerDialog(
-            onDismissRequest = onDismiss,
-            confirmButton = {
-                TextButton(
-                    onClick = { step = 2 },
-                    enabled = datePickerState.selectedDateMillis != null
-                ) {
-                    Text("Next", fontWeight = FontWeight.Bold, color = Color(0xFF4B4EFC))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("Cancel", color = Color.Gray)
-                }
-            },
-            colors = DatePickerDefaults.colors(containerColor = Color.White)
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    } else {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text("Select Visit Time", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("When would you like to visit $propertyName?", fontSize = 14.sp, color = Color.Gray)
-                    Spacer(Modifier.height(24.dp))
-                    TimePicker(state = timePickerState)
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-                        val dateString = datePickerState.selectedDateMillis?.let { sdf.format(Date(it)) } ?: ""
-                        val timeString = String.format("%02d:%02d", timePickerState.hour, timePickerState.minute)
-                        onConfirm(dateString, timeString)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Schedule Now")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { step = 1 }) {
-                    Text("Back", color = Color.Gray)
-                }
-            },
-            shape = RoundedCornerShape(28.dp),
-            containerColor = Color.White
-        )
-    }
-}
 
 @Composable
 fun RatingDialog(
@@ -459,8 +404,20 @@ fun PropertySpecCard(modifier: Modifier = Modifier, value: String, label: String
             modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = value, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
-            Text(text = label, fontSize = 12.sp, color = Color.Gray)
+            AutoResizingText(
+                text = value,
+                style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                color = Color.Black,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
+            AutoResizingText(
+                text = label,
+                style = TextStyle(fontSize = 12.sp),
+                color = Color.Gray,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -521,7 +478,7 @@ fun OwnerSection() {
 }
 
 @Composable
-fun PropertyDetailBottomBar(onScheduleClick: () -> Unit) {
+fun PropertyDetailBottomBar(onScheduleClick: () -> Unit, onRequestToRentClick: () -> Unit, isRented: Boolean) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color.White,
@@ -537,6 +494,7 @@ fun PropertyDetailBottomBar(onScheduleClick: () -> Unit) {
             ) {
                 OutlinedButton(
                     onClick = onScheduleClick,
+                    enabled = !isRented,
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp),
@@ -544,17 +502,18 @@ fun PropertyDetailBottomBar(onScheduleClick: () -> Unit) {
                     border = BorderStroke(1.dp, Color.LightGray),
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
                 ) {
-                    Text("Schedule Visit", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text("Schedule Visit", color = if (isRented) Color.Gray else Color.Black, fontWeight = FontWeight.Bold)
                 }
                 Button(
-                    onClick = { },
+                    onClick = onRequestToRentClick,
+                    enabled = !isRented,
                     modifier = Modifier
                         .weight(1.5f)
                         .height(56.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E))
                 ) {
-                    Text("Request to Rent", fontWeight = FontWeight.Bold)
+                    Text(if (isRented) "Already Rented" else "Request to Rent", fontWeight = FontWeight.Bold)
                 }
             }
         }

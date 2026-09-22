@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.toArgb
 data class Property(
     val id: String = "",
     val badge: String = "Available",
-    val badgeColorValue: Int = Color(0xFF4B4EFC).toArgb(),
+    val badgeColorValue: Int = Color(0xFF22C55E).toArgb(),
     val imageBgValue: Int = Color(0xFFF5F5F7).toArgb(),
     val price: String = "₹0",
     val numericPrice: Int = 0,
@@ -29,7 +29,8 @@ data class Property(
     val longitude: Double = 0.0,
     val mediaUris: List<String> = emptyList(),
     val isLiked: Boolean = false,
-    val landlordId: String = ""
+    val landlordId: String = "",
+    val addedTimestamp: Long = 0L
 ) {
     val badgeColor: Color get() = Color(badgeColorValue)
     val imageBg: Color get() = Color(imageBgValue)
@@ -39,13 +40,45 @@ data class Enquiry(
     val id: String = "",
     val name: String = "",
     val propertyName: String = "",
-    val type: String = "",
+    val propertyId: String = "",
+    val type: String = "", // "Visit request" or "Rent request"
     val initials: String = "",
     val avatarBgValue: Int = Color(0xFFE8EAF6).toArgb(),
-    val showActionButtons: Boolean = false,
+    val tenantId: String = "",
+    val landlordId: String = "",
+    val status: String = "Pending", // "Pending", "Accepted", "Declined"
+    val visitDate: String = "",
+    val visitTime: String = "",
+    val showActionButtons: Boolean = true,
     val showChatButton: Boolean = false
 ) {
     val avatarBg: Color get() = Color(avatarBgValue)
+}
+
+enum class BookingStatus(val label: String, val color: Color) {
+    ACTIVE("Active", Color(0xFF22C55E)),
+    VISIT_SET("Visit set", Color(0xFF3B82F6)),
+    PENDING("Pending", Color(0xFFF59E0B)),
+    COMPLETED("Completed", Color(0xFF6B7280)),
+    CANCELLED("Cancelled", Color(0xFFEF4444))
+}
+
+data class Booking(
+    val id: String = "",
+    val propertyId: String = "",
+    val propertyName: String = "",
+    val location: String = "",
+    val bhk: String = "",
+    val price: String = "",
+    val status: String = "Pending", // "Pending", "Active", "Completed", "Cancelled", "Visit set"
+    val tenantId: String = "",
+    val landlordId: String = "",
+    val visitDate: String = "",
+    val since: String = "",
+    val mediaUri: String = "",
+    val imageBgValue: Int = Color(0xFFC8D3F5).toArgb()
+) {
+    val imageBg: Color get() = Color(imageBgValue)
 }
 
 data class FilterParams(
@@ -58,12 +91,32 @@ data class FilterParams(
     val minRating: String = "Any"
 )
 
+data class UserProfile(
+    val uid: String = "",
+    val name: String = "Rahul Sharma",
+    val email: String = "rahul.sharma@email.com",
+    val phone: String = "+91 98765 43210",
+    val city: String = "New Delhi, India",
+    val occupation: String = "Software Engineer",
+    val rating: Float = 0.0f,
+    val memberSince: String = "2024",
+    val propertiesViewed: Int = 0,
+    val activeBookings: Int = 0,
+    val leasesEnded: Int = 0,
+    val role: String = "",
+    val profileImage: Any? = null,
+    val isVerified: Boolean = false
+)
+
 data class Tenant(
     val uid: String = "",
     val fullName: String = "",
     val mobileNumber: String = "",
     val emailAddress: String = "",
-    val password: String = ""
+    val password: String = "",
+    val isVerified: Boolean = false,
+    val rating: Float = 0.0f,
+    val memberSince: String = ""
 )
 
 data class Landlord(
@@ -72,5 +125,8 @@ data class Landlord(
     val mobile: String = "",
     val city: String = "",
     val email: String = "",
-    val password: String = ""
+    val password: String = "",
+    val isVerified: Boolean = false,
+    val rating: Float = 0.0f,
+    val memberSince: String = ""
 )

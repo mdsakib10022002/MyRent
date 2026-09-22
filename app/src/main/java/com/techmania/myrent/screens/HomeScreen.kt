@@ -57,6 +57,12 @@ fun HomeScreen(
     var tempAmenities by remember { mutableStateOf(appliedFilters.amenities) }
     var tempMinRating by remember { mutableStateOf(appliedFilters.minRating) }
 
+    val trendingProperties = remember(propertyViewModel.properties) {
+        propertyViewModel.properties.filter { p ->
+            p.badge == "New" || (p.badge == "Available" && p.numericRating >= 4.0f)
+        }
+    }
+
     Scaffold(
         bottomBar = {
             AppBottomNavigation(
@@ -117,10 +123,10 @@ fun HomeScreen(
                 }
 
                 // New Attractive Horizontal Layer for Quick Discovery
-                if (searchQuery.isEmpty()) {
+                if (searchQuery.isEmpty() && trendingProperties.isNotEmpty()) {
                     item {
                         TrendingRowSection(
-                            properties = propertyViewModel.properties,
+                            properties = trendingProperties,
                             onPropertyClick = onPropertyClick,
                             onLikeClick = { propertyViewModel.toggleLike(it) }
                         )
@@ -271,7 +277,7 @@ fun StickySearchBarSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .padding(top = 8.dp, bottom = 16.dp)
+                .padding(top = 14.dp, bottom = 16.dp)
                 .height(52.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFFFFFFFF).copy(alpha = 0.95f)) // Slightly translucent for modern feel
@@ -441,8 +447,18 @@ fun CompactTrendingCard(property: Property, onClick: () -> Unit, onLikeClick: ()
                 }
             }
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(property.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, color = Color(0xFF1F2937))
-                Text("${property.bhk} • ${property.areaName}", fontSize = 11.sp, color = Color(0xFF9CA3AF), maxLines = 1)
+                AutoResizingText(
+                    text = property.name,
+                    style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                    color = Color(0xFF1F2937),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                AutoResizingText(
+                    text = "${property.bhk} • ${property.areaName}",
+                    style = TextStyle(fontSize = 11.sp),
+                    color = Color(0xFF9CA3AF),
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = property.price, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF4B4EFC))
@@ -574,12 +590,14 @@ fun PropertyCard(property: Property, onClick: () -> Unit, onLikeClick: () -> Uni
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
+                    Row(
+                        modifier = Modifier.weight(1f, fill = false),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        AutoResizingText(
                             text = property.price,
-                            color = Color(0xFF4B4EFC),
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold
+                            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.ExtraBold),
+                            color = Color(0xFF4B4EFC)
                         )
                         Text(
                             text = "/mo",
@@ -589,7 +607,10 @@ fun PropertyCard(property: Property, onClick: () -> Unit, onLikeClick: () -> Uni
                         )
                     }
                     
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.padding(start = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(Icons.Default.Star, null, tint = Color(0xFFFFB800), modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(text = property.rating, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1F2937))
@@ -599,19 +620,18 @@ fun PropertyCard(property: Property, onClick: () -> Unit, onLikeClick: () -> Uni
                 
                 Spacer(modifier = Modifier.height(6.dp))
                 
-                Text(
+                AutoResizingText(
                     text = property.name,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold),
                     color = Color(0xFF1F2937),
-                    maxLines = 1
+                    modifier = Modifier.fillMaxWidth()
                 )
                 
-                Text(
+                AutoResizingText(
                     text = "${property.areaName}, ${property.city}",
+                    style = TextStyle(fontSize = 13.sp),
                     color = Color(0xFF6B7280),
-                    fontSize = 13.sp,
-                    maxLines = 1
+                    modifier = Modifier.fillMaxWidth()
                 )
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -620,11 +640,11 @@ fun PropertyCard(property: Property, onClick: () -> Unit, onLikeClick: () -> Uni
                 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    PropertyFeatureItem(Icons.Outlined.Bed, property.bhk)
-                    PropertyFeatureItem(Icons.Outlined.SquareFoot, property.size)
-                    PropertyFeatureItem(Icons.Outlined.Chair, property.furnishing.split(" ").firstOrNull() ?: property.furnishing)
+                    PropertyFeatureItem(Icons.Outlined.Bed, property.bhk, Modifier.weight(1f))
+                    PropertyFeatureItem(Icons.Outlined.SquareFoot, property.size, Modifier.weight(1f))
+                    PropertyFeatureItem(Icons.Outlined.Chair, property.furnishing.split(" ").firstOrNull() ?: property.furnishing, Modifier.weight(1f))
                 }
             }
         }
@@ -632,11 +652,19 @@ fun PropertyCard(property: Property, onClick: () -> Unit, onLikeClick: () -> Uni
 }
 
 @Composable
-fun PropertyFeatureItem(icon: ImageVector, label: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(16.dp))
+fun PropertyFeatureItem(icon: ImageVector, label: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
         Spacer(modifier = Modifier.width(4.dp))
-        Text(text = label, fontSize = 12.sp, color = Color(0xFF6B7280), fontWeight = FontWeight.Medium)
+        AutoResizingText(
+            text = label,
+            style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+            color = Color(0xFF6B7280),
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

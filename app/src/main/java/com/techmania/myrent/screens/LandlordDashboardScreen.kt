@@ -193,13 +193,9 @@ fun LandlordDashboardScreen(
                 } else {
                     items(propertyViewModel.enquiries) { enquiry ->
                         EnquiryItem(
-                            name = enquiry.name,
-                            property = enquiry.propertyName,
-                            type = enquiry.type,
-                            initials = enquiry.initials,
-                            avatarBg = enquiry.avatarBg,
-                            showActionButtons = enquiry.showActionButtons,
-                            showChatButton = enquiry.showChatButton
+                            enquiry = enquiry,
+                            onAccept = { propertyViewModel.respondToEnquiry(enquiry, true) },
+                            onDecline = { propertyViewModel.respondToEnquiry(enquiry, false) }
                         )
                     }
                 }
@@ -549,13 +545,9 @@ fun RecentEnquiriesHeader() {
 
 @Composable
 fun EnquiryItem(
-    name: String,
-    property: String,
-    type: String,
-    initials: String,
-    avatarBg: Color,
-    showActionButtons: Boolean = false,
-    showChatButton: Boolean = false
+    enquiry: Enquiry,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -573,25 +565,33 @@ fun EnquiryItem(
         ) {
             Surface(
                 shape = CircleShape,
-                color = avatarBg,
+                color = enquiry.avatarBg,
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(text = initials, color = Color(0xFF5C6BC0), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(text = enquiry.initials, color = Color(0xFF5C6BC0), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
             
             Spacer(modifier = Modifier.width(12.dp))
             
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(text = "$property · $type", fontSize = 12.sp, color = Color.Gray)
+                Text(text = enquiry.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(text = "${enquiry.propertyName} · ${enquiry.type}", fontSize = 12.sp, color = Color.Gray)
+                if (enquiry.status != "Pending") {
+                    Text(
+                        text = enquiry.status,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (enquiry.status == "Accepted") Color(0xFF2E7D32) else Color(0xFFD32F2F)
+                    )
+                }
             }
             
-            if (showActionButtons) {
+            if (enquiry.status == "Pending") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
-                        onClick = { },
+                        onClick = onAccept,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00897B)),
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
@@ -600,7 +600,7 @@ fun EnquiryItem(
                         Text("Accept", fontSize = 12.sp)
                     }
                     OutlinedButton(
-                        onClick = { },
+                        onClick = onDecline,
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         modifier = Modifier.height(36.dp)
@@ -610,7 +610,7 @@ fun EnquiryItem(
                 }
             }
             
-            if (showChatButton) {
+            if (enquiry.showChatButton) {
                 Button(
                     onClick = { },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C1C1E)),

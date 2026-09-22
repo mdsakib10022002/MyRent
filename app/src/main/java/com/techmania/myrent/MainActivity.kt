@@ -247,7 +247,6 @@ fun MainNavigation() {
         }
         composable("explore") {
             ExploreScreen(
-                userName = currentUserName,
                 isLandlord = isLandlord,
                 propertyViewModel = propertyViewModel,
                 onHomeClick = {
